@@ -1,5 +1,11 @@
 # @aredotna/mcp
 
+This fork adds `read_pdf_block` and `get_pdf_pages`, with page citations,
+token-scoped caching and optional OCR. Existing API tools and OAuth routes are
+retained. See [PDF tools and deployment](docs/pdf-tools.md) for the fork's setup,
+limits and verification. The `mcp.are.na` URLs below are the upstream hosted
+service; they do not include this fork's additional tools.
+
 MCP server for the [Are.na](https://www.are.na) API. Provides 40+ auto-generated tools from the OpenAPI spec plus custom composite tools.
 
 ## Quick start

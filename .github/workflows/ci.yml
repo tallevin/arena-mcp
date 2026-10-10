@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [feature/pdf-retrieval]
   pull_request:
     branches: [main]
 
@@ -17,6 +19,12 @@ jobs:
 
       - run: yarn install --frozen-lockfile
 
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr
+
       - run: yarn typecheck
 
       - run: yarn test
+
+      - run: yarn build
+
+      - run: yarn wrangler deploy --dry-run

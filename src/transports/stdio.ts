@@ -2,6 +2,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpServer } from "../server";
+import { PdfService } from "../pdf/service";
+import { DiskPdfCache, LocalOcrProvider } from "../pdf/local";
+import { RemoteOcrProvider } from "../pdf/remote-ocr";
+import { resolve } from "node:path";
 
 function injectAuthInfo(transport: StdioServerTransport, authInfo: AuthInfo) {
   const t = transport as Transport;
@@ -21,7 +25,24 @@ async function main() {
     process.exit(1);
   }
 
-  const server = createMcpServer();
+  const pdf = new PdfService({
+    cache: new DiskPdfCache(
+      resolve(process.env["PDF_CACHE_DIR"] ?? ".cache/pdf"),
+    ),
+    ocr:
+      process.env["PDF_OCR"] === "local"
+        ? new LocalOcrProvider(
+            process.env["PDF_POPPLER_PATH"],
+            process.env["PDF_TESSERACT_PATH"],
+          )
+        : process.env["PDF_OCR_ENDPOINT"]
+          ? new RemoteOcrProvider(
+              process.env["PDF_OCR_ENDPOINT"],
+              process.env["PDF_OCR_TOKEN"],
+            )
+          : undefined,
+  });
+  const server = createMcpServer(pdf);
   const transport = new StdioServerTransport();
 
   await server.connect(transport);
