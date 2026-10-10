@@ -115,16 +115,16 @@ The root `server.ts` exports a Hono application for Vercel's Node.js runtime.
 Cloudflare transports remain supported. Vercel does not need a Cloudflare account.
 
 1. Import `tallevin/arena-mcp` into your Vercel team with framework **Hono**,
-   Node.js **24.x**, and the `feature/pdf-retrieval` branch. Leave build settings
-   at the framework defaults: Vercel builds the Hono entry. A deployment of upstream `main`
-   will not contain these PDF features until the pull request is merged.
+   Node.js **24.x**, and this fork's `main` branch. Leave build settings
+   at the framework defaults: Vercel builds the Hono entry. The official upstream
+   repository does not include this fork's PDF extension.
 2. In the project's **Storage** tab, connect **Upstash Redis** through the
    [Vercel Marketplace](https://vercel.com/marketplace/upstash). Review the
    provider's plan and data region before accepting. The app accepts either
    `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` or the Marketplace's
    `KV_REST_API_URL` / `KV_REST_API_TOKEN`. Redis stores separate `arena:oauth`
    and `arena:pdf` prefixes. It must be private to this app or use properly
-   scoped credentials. Connecting storage is not authorized by GitHub access.
+   scoped credentials.
 3. Register an application at
    [Are.na OAuth applications](https://www.are.na/developers/oauth/applications).
    Use the stable production callback `https://<your-vercel-host>/callback`.
@@ -150,8 +150,14 @@ Cloudflare transports remain supported. Vercel does not need a Cloudflare accoun
 
 The Vercel integration can deploy the GitHub branch without adding a local
 Vercel login. If its storage permissions are insufficient, connect Upstash in
-Vercel's dashboard. No Redis plan or external OCR service is provisioned by this
-change. Optional OCR uses `PDF_OCR_ENDPOINT` / `PDF_OCR_TOKEN` as described above.
+Vercel's dashboard. The existing deployment has Redis connected and the Are.na
+application credentials configured. Its production endpoint is public while
+previews remain protected. No external OCR service is configured. Optional OCR
+uses `PDF_OCR_ENDPOINT` / `PDF_OCR_TOKEN` as described above.
+
+To connect the existing endpoint in ChatGPT, see the
+[README's ChatGPT steps](../README.md#connect-to-chatgpt), based on
+[OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt#add-the-mcp-server).
 
 ## Cloudflare alternative
 
@@ -185,7 +191,15 @@ not independently audited or redesigned by this work.
   writes and incomplete/failed chunk handling.
 - Vercel discovery, authentication challenges, all 54 tools, and a simulated
   complete PKCE OAuth round trip across independent handler instances.
+- Live production checks without Vercel credentials: OAuth discovery returns
+  200, unauthenticated MCP requests return 401, and preview URLs redirect to
+  Vercel sign-in.
+- Live Vercel reading of a private 21-page Are.na PDF: physical pages 1 and 2
+  returned text and citations. The Redis cache hit survived a redeployment.
+- Live dynamic OAuth client registration and authorization redirect to Are.na,
+  including the exact production callback and a configured provider client.
 - TypeScript checks, compiled Node.js server startup, build and Cloudflare deployment dry run.
 
-Hosted Redis persistence and a browser OAuth round trip on the new hostname
-remain unverified until the storage/application steps above are completed.
+A complete browser OAuth round trip from ChatGPT, including Are.na consent and
+the final token exchange, remains unverified. Hosted Redis persistence is verified;
+the hosted OCR adapter is mock-tested and has no external provider configured.

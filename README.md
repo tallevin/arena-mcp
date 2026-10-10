@@ -17,28 +17,54 @@ The fork's stable MCP URL is:
 https://arena-mcp-tallevins-projects.vercel.app/mcp
 ```
 
-Verified on **10 October 2026**, using application commit `3d27ca3`:
+Verified on **10 October 2026**:
 
-| Item                 | Status                                                                                                   |
-| -------------------- | -------------------------------------------------------------------------------------------------------- |
-| Vercel deployment    | Running; [view deployment](https://vercel.com/tallevins-projects/arena-mcp/68JXgnW5GoL6Yg4VoMjp45nz3ZSk) |
-| PDF reading          | Live test retrieved pages 1 and 2 of a private 21-page PDF with text and citations                       |
-| Tools                | All 54 available, including the original 52                                                              |
-| Tests                | 56 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions/runs/38031409964)              |
-| Durable hosted cache | Redis adapter implemented; Redis not yet connected                                                       |
-| OAuth sign-in        | Application credentials not yet configured; OAuth routes return 503                                      |
-| Production access    | Vercel login protection remains enabled; live tests used authorized temporary access                     |
-| Hosted OCR           | Optional adapter implemented; no external provider configured                                            |
+| Item                 | Status                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| Vercel deployment    | Running; [view project](https://vercel.com/tallevins-projects/arena-mcp)                              |
+| PDF reading          | Live test retrieved pages 1 and 2 of a private 21-page PDF with text and citations                    |
+| Tools                | All 54 available, including the original 52                                                           |
+| Tests                | 56 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions)                            |
+| Durable hosted cache | Redis connected; a live PDF cache hit survived a production redeployment                              |
+| OAuth sign-in        | Application credentials configured; live client registration and redirect to Are.na verified          |
+| Production access    | Public HTTPS endpoint; Are.na authentication required for MCP calls; previews remain Vercel-protected |
+| Hosted OCR           | Optional adapter implemented; no external provider configured                                         |
 
-The live cache test reused the same server instance's memory cache. Durable
-Redis persistence and an actual browser OAuth sign-in still need verification
-following configuration. The current implementation is on `feature/pdf-retrieval`
-in [draft pull request #1](https://github.com/tallevin/arena-mcp/pull/1);
-`main` does not yet contain these changes.
+Live verification used the production URL without Vercel credentials. Redis
+reads/writes, OAuth discovery, client registration and the exact registered
+Are.na callback all passed. Completing Are.na consent from ChatGPT and the final
+browser token exchange still need verification. Source and release history are
+in [pull request #1](https://github.com/tallevin/arena-mcp/pull/1).
 
 The official `https://mcp.are.na/mcp` endpoint runs the upstream server. Use this
 fork's endpoint for the PDF tools. Keep an existing official connection available
 until sign-in to the new endpoint is verified.
+
+## Connect to ChatGPT
+
+The existing Vercel deployment already has Redis and Are.na application
+credentials configured. Add the endpoint as a separate custom MCP connection:
+
+1. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select the plus button,
+   and choose **Add custom MCP server**.
+2. Use a name such as **Are.na PDF** and the description **Read Are.na channels
+   and PDF attachments with page citations and cached page retrieval**.
+3. Set the public server URL to
+   `https://arena-mcp-tallevins-projects.vercel.app/mcp` and authentication to
+   **OAuth**. Let the server register the client automatically; do not enter the
+   Are.na application's client ID or secret into ChatGPT.
+4. Review the connection prompt, create the plugin and complete Are.na sign-in
+   and consent. Confirm that `read_pdf_block` and `get_pdf_pages` appear among
+   the 54 discovered tools.
+5. Start a new chat, select **Are.na PDF** with `@`, and ask it to read a PDF
+   from one of your Are.na channels, citing page numbers. Follow up by requesting
+   specific physical pages.
+
+Account and workspace policies can affect custom MCP availability. These steps
+follow [OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt#add-the-mcp-server).
+If sign-in fails, confirm that the Are.na application callback exactly matches
+`https://arena-mcp-tallevins-projects.vercel.app/callback`, then inspect Vercel's
+runtime logs. Avoid sharing credentials or complete OAuth redirect URLs.
 
 ## PDF tools
 
@@ -134,7 +160,7 @@ settings at the framework defaults. The root `server.ts` exports the Hono app;
 Use Node.js **22 or newer** and Yarn. Current CI and Vercel deployment use Node.js 24. Generated API tools are committed, so generation is not required to start.
 
 ```sh
-git clone --branch feature/pdf-retrieval https://github.com/tallevin/arena-mcp.git
+git clone https://github.com/tallevin/arena-mcp.git
 cd arena-mcp
 yarn install --frozen-lockfile
 yarn typecheck
