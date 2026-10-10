@@ -115,8 +115,8 @@ The root `server.ts` exports a Hono application for Vercel's Node.js runtime.
 Cloudflare transports remain supported. Vercel does not need a Cloudflare account.
 
 1. Import `tallevin/arena-mcp` into your Vercel team with framework **Hono**,
-   Node.js **24.x**, and the `feature/pdf-retrieval` branch. Keep the build command
-   empty: Vercel builds the Hono entry directly. A deployment of upstream `main`
+   Node.js **24.x**, and the `feature/pdf-retrieval` branch. Leave build settings
+   at the framework defaults: Vercel builds the Hono entry. A deployment of upstream `main`
    will not contain these PDF features until the pull request is merged.
 2. In the project's **Storage** tab, connect **Upstash Redis** through the
    [Vercel Marketplace](https://vercel.com/marketplace/upstash). Review the
