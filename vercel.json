@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "hono",
-  "buildCommand": "",
-  "functions": { "server.ts": { "maxDuration": 300 } }
+  "buildCommand": ""
 }

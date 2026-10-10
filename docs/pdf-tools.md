@@ -111,7 +111,7 @@ has been provisioned or tested by this change.
 ## Deploying on Vercel (preferred)
 
 The root `server.ts` exports a Hono application for Vercel's Node.js runtime.
-`vercel.json` selects Hono with a 300-second function ceiling. Existing stdio and
+`vercel.json` selects Hono; the project uses a 300-second function ceiling. Existing stdio and
 Cloudflare transports remain supported. Vercel does not need a Cloudflare account.
 
 1. Import `tallevin/arena-mcp` into your Vercel team with framework **Hono**,
