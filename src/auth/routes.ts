@@ -1,3 +1,4 @@
+import type { StringKv } from "./kv";
 /**
  * OAuth 2.1 routes for MCP authorization.
  *
@@ -15,7 +16,7 @@ const ARENA_AUTHORIZE_URL = "https://www.are.na/oauth/authorize";
 const ARENA_TOKEN_URL = "https://api.are.na/v3/oauth/token";
 
 interface OAuthEnv {
-  OAUTH_KV: KVNamespace;
+  OAUTH_KV: StringKv;
   ARENA_OAUTH_CLIENT_ID: string;
   ARENA_OAUTH_CLIENT_SECRET: string;
 }

@@ -2,7 +2,8 @@
 
 This fork adds `read_pdf_block` and `get_pdf_pages`, with page citations,
 token-scoped caching and optional OCR. Existing API tools and OAuth routes are
-retained. See [PDF tools and deployment](docs/pdf-tools.md) for the fork's setup,
+retained. Vercel hosting is supported through a Hono entry and Redis storage.
+See [PDF tools and deployment](docs/pdf-tools.md) for the fork's setup,
 limits and verification. The `mcp.are.na` URLs below are the upstream hosted
 service; they do not include this fork's additional tools.
 

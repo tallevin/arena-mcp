@@ -1,3 +1,4 @@
+import type { StringKv } from "../auth/kv";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
@@ -9,12 +10,12 @@ import { PdfService } from "../pdf/service";
 import { KvPdfCache } from "../pdf/cache";
 import { RemoteOcrProvider } from "../pdf/remote-ocr";
 
-interface Env {
+export interface Env {
   ARENA_ACCESS_TOKEN?: string;
-  OAUTH_KV: KVNamespace;
+  OAUTH_KV: StringKv;
   ARENA_OAUTH_CLIENT_ID: string;
   ARENA_OAUTH_CLIENT_SECRET: string;
-  PDF_CACHE?: KVNamespace;
+  PDF_CACHE?: StringKv;
   PDF_OCR_ENDPOINT?: string;
   PDF_OCR_TOKEN?: string;
 }

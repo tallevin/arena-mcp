@@ -1,3 +1,4 @@
+import type { StringKv } from "../auth/kv";
 /** Cache entries contain extracted text, never bearer tokens or raw PDFs. */
 export interface PdfCache {
   get(key: string): Promise<string | null>;
@@ -47,7 +48,7 @@ export class MemoryPdfCache implements PdfCache {
 }
 
 export class KvPdfCache implements PdfCache {
-  constructor(private kv: KVNamespace) {}
+  constructor(private kv: StringKv) {}
 
   get(key: string) {
     return this.kv.get(key);

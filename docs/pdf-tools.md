@@ -5,8 +5,8 @@ It reuses the existing Are.na API client and each call's bearer token, and adds
 two tools without replacing the generated tools, OAuth flow or composite tools.
 The fork suits this task because upstream already supports custom tools and both
 stdio and Cloudflare Workers HTTP transports. A companion would require another
-authentication connection and duplicate API access. Vercel would require a new
-runtime adapter and durable OAuth storage; it is not the deployment target here.
+authentication connection and duplicate API access. This fork also adds a Vercel
+Hono entry point and a Redis adapter for durable OAuth state and PDF caching.
 
 ## Tool calls
 
@@ -49,24 +49,28 @@ The first read downloads the whole attachment and extracts all native-text pages
 once. Targeted reads return only the requested text and reuse that extraction;
 they are not PDF byte-range downloads. OCR results are cached separately by
 provider, language and page. Requesting uncached OCR may require another download.
-Concurrent native extraction requests in one process/isolate share work. KV is
-eventually consistent, so simultaneous cold requests in different regions can
-repeat extraction; the service does not promise exactly-once processing.
+Concurrent native extraction requests in one process/isolate share work.
+Simultaneous cold requests in different instances can repeat extraction; the
+service does not promise exactly-once processing. Cloudflare KV is eventually
+consistent; Vercel Redis writes publish a complete version after its chunks exist.
 
 Only approved Are.na attachment storage hosts are accepted, and every redirect
 is checked. API tokens are never sent to attachment hosts. Downloads have a
 30-second deadline and a 25 MiB limit that also applies to chunked responses.
 Native extraction is sequential and limited to 500 pages, 5 million characters,
 and a cooperative 30-second deadline checked between pages. An individual PDF.js
-parse can block the event loop; this is not a hard CPU interrupt. Workers'
-platform CPU/memory limits can impose smaller practical document limits.
+parse can block the event loop; this is not a hard CPU interrupt. The hosting
+platform's CPU/memory limits can impose smaller practical document limits.
 Unsupported or password-protected PDFs return an error rather than partial text.
 
 Cache retention is seven days. stdio uses `.cache/pdf` (or `PDF_CACHE_DIR`) with
 private file permissions and atomic writes; expired files are pruned on writes.
-HTTP uses a separate `PDF_CACHE` KV binding, with automatic expiry. Without KV,
-HTTP uses a bounded 16 MiB in-memory cache per isolate, lost on restart.
-Only extracted text is persisted; raw PDFs and bearer tokens are not stored.
+Cloudflare HTTP uses a separate `PDF_CACHE` KV binding. Vercel uses a dedicated
+`arena:pdf` Redis prefix, with versioned chunks for large entries and automatic
+expiry. Without persistent storage, HTTP uses a bounded 16 MiB in-memory cache
+per instance, lost on restart. The PDF cache stores extracted text, not raw PDFs
+or bearer tokens. The separate OAuth store retains short-lived token exchanges,
+as in the original server; its credentials and contents must remain private.
 
 ## Local setup and optional OCR
 
@@ -88,7 +92,7 @@ bounded image dimensions and subprocess deadlines; temporary files are removed.
 The test suite exercises actual image-only PDF OCR when those programs are
 available, and skips that one test otherwise. CI installs them for this test.
 
-Hosted Workers cannot execute native programs. To enable hosted OCR, explicitly
+Hosted deployment does not include Poppler/Tesseract. To enable hosted OCR, explicitly
 configure `PDF_OCR_ENDPOINT` and optionally `PDF_OCR_TOKEN`. The endpoint must be
 HTTPS, accept a PDF body with `Content-Type: application/pdf`, `X-PDF-Pages`
 (comma-separated physical numbers), and `X-OCR-Language`. It must return:
@@ -104,42 +108,65 @@ responses are bounded to 8 MiB, and the request times out after 60 seconds.
 The adapter is protocol-tested against a mock endpoint; no external OCR service
 has been provisioned or tested by this change.
 
-## Deploying your fork
+## Deploying on Vercel (preferred)
 
-Deployment requires your Cloudflare account, its own KV namespaces, and an Are.na
-OAuth application for the new server. Upstream OAuth credentials and storage are
-not available to forks. GitHub authorisation does not grant those credentials.
+The root `server.ts` exports a Hono application for Vercel's Node.js runtime.
+`vercel.json` selects Hono with a 300-second function ceiling. Existing stdio and
+Cloudflare transports remain supported. Vercel does not need a Cloudflare account.
 
-1. Sign in with `yarn wrangler login` (or supply a scoped Cloudflare API token and
-   `CLOUDFLARE_ACCOUNT_ID`). Create `OAUTH_KV` and `PDF_CACHE` with
-   `yarn wrangler kv namespace create <binding>`, then put their IDs in
-   `wrangler.toml`. The checked-in IDs are placeholders, not upstream resources.
-2. Register an application at
+1. Import `tallevin/arena-mcp` into your Vercel team with framework **Hono**,
+   Node.js **24.x**, and the `feature/pdf-retrieval` branch. Keep the build command
+   empty: Vercel builds the Hono entry directly. A deployment of upstream `main`
+   will not contain these PDF features until the pull request is merged.
+2. In the project's **Storage** tab, connect **Upstash Redis** through the
+   [Vercel Marketplace](https://vercel.com/marketplace/upstash). Review the
+   provider's plan and data region before accepting. The app accepts either
+   `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` or the Marketplace's
+   `KV_REST_API_URL` / `KV_REST_API_TOKEN`. Redis stores separate `arena:oauth`
+   and `arena:pdf` prefixes. It must be private to this app or use properly
+   scoped credentials. Connecting storage is not authorized by GitHub access.
+3. Register an application at
    [Are.na OAuth applications](https://www.are.na/developers/oauth/applications).
-   Its callback must be `https://<your-worker-host>/callback`.
-3. Set `ARENA_OAUTH_CLIENT_ID` and `ARENA_OAUTH_CLIENT_SECRET` using
-   `yarn wrangler secret put <name>`. Keep them out of git. For a publicly
-   accessible deployment, authenticate each caller; do not configure a shared
+   Use the stable production callback `https://<your-vercel-host>/callback`.
+   Save `ARENA_OAUTH_CLIENT_ID` and `ARENA_OAUTH_CLIENT_SECRET` as encrypted
+   Vercel environment variables for the deployment environment. Do not add them
+   to GitHub or chat. Upstream's OAuth credentials cannot be reused.
+4. Redeploy after connecting storage and setting environment variables. The
+   root response reports `oauth_configured` and `durable_cache_configured`.
+   These flags describe configuration, not a successful storage health check.
+   Until setup is complete, OAuth routes return an explicit 503. Bearer-token
+   MCP requests remain available with temporary memory caching. The Vercel
+   adapter always requires the caller's token and ignores a global
    `ARENA_ACCESS_TOKEN` fallback.
-4. Run `yarn wrangler deploy --dry-run`, then `yarn deploy`. The worker name is
-   `tallevin-arena-mcp`; its final hostname depends on your Cloudflare account.
-5. Check OAuth discovery and the 401 challenge without a token. With a token set
-   privately in the environment, run
-   `yarn smoke:pdf https://<your-worker-host>/mcp <pdf-block-id>` to check tool
-   discovery, extraction and a subsequent cache hit. Then complete the OAuth
-   connection in your MCP client, using the new `/mcp` URL.
+5. MCP clients must reach the endpoint without Vercel's separate login gate.
+   Review **Settings → Deployment Protection** for the production URL. Keep
+   preview deployments protected; use a production endpoint accessible to the
+   MCP client. Are.na authentication still protects `/mcp` with a 401 challenge.
+6. Run `yarn smoke:pdf https://<your-vercel-host>/mcp <pdf-block-id>` with an
+   Are.na token privately set in your local environment. Confirm tool discovery,
+   text extraction and a subsequent cache hit. Then connect the new `/mcp` URL
+   in ChatGPT and complete Are.na sign-in. Keep the official connector until
+   that browser OAuth round trip succeeds.
 
-Local Workers development (`yarn dev:http`) supplies local KV automatically.
-For end-to-end browser OAuth locally, use an OAuth application callback of
-`http://127.0.0.1:8787/callback` and credentials in ignored `.dev.vars`.
+The Vercel integration can deploy the GitHub branch without adding a local
+Vercel login. If its storage permissions are insufficient, connect Upstash in
+Vercel's dashboard. No Redis plan or external OCR service is provisioned by this
+change. Optional OCR uses `PDF_OCR_ENDPOINT` / `PDF_OCR_TOKEN` as described above.
 
-The GitHub deployment workflow is manual to prevent a fork from deploying before
-its storage and OAuth configuration are ready. For CI deployment, set repository
-secrets `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`, update the namespace IDs,
-and run the Deploy workflow on the intended branch. Worker OAuth secrets are
-configured separately using Wrangler. Keep the existing official Are.na connector
-until the new endpoint's OAuth round trip is verified. The existing authentication
-implementation is retained, not independently audited or redesigned by this work.
+## Cloudflare alternative
+
+To use the original Workers transport, sign in with `yarn wrangler login`, create
+your own `OAUTH_KV` and `PDF_CACHE` namespaces, and replace the placeholder IDs
+in `wrangler.toml`. Register the worker's `/callback` with your Are.na application
+and store its client ID/secret using `yarn wrangler secret put <name>`. Run
+`yarn wrangler deploy --dry-run`, then `yarn deploy`. Do not configure a shared
+Are.na token on a public worker. Local `yarn dev:http` supplies local KV; browser
+OAuth needs an appropriate local callback and credentials in ignored `.dev.vars`.
+
+The Cloudflare GitHub deployment workflow is manual. It requires repository
+secrets `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`, real namespace IDs and
+separately configured Worker OAuth secrets. Existing OAuth behavior is retained,
+not independently audited or redesigned by this work.
 
 ## Verification performed
 
@@ -154,7 +181,11 @@ implementation is retained, not independently audited or redesigned by this work
 - Actual local Poppler/Tesseract recognition of an image-only scanned PDF.
 - A real private 21-page Are.na PDF through the local Cloudflare Workers runtime:
   physical pages 1 and 2 returned text and citations; the second read hit KV cache.
+- Redis namespace isolation, expiry settings, large entry chunking, concurrent
+  writes and incomplete/failed chunk handling.
+- Vercel discovery, authentication challenges, all 54 tools, and a simulated
+  complete PKCE OAuth round trip across independent handler instances.
 - TypeScript checks, build and Cloudflare deployment dry run.
 
-Hosted Cloudflare deployment and a browser OAuth round trip on the new hostname
-remain unverified until the account/application steps above are completed.
+Hosted Redis persistence and a browser OAuth round trip on the new hostname
+remain unverified until the storage/application steps above are completed.

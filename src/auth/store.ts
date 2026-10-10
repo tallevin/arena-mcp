@@ -1,3 +1,4 @@
+import type { StringKv } from "./kv";
 /**
  * KV-backed store for OAuth state: client registrations, PKCE auth flows,
  * and authorization code-to-token mappings.
@@ -40,7 +41,7 @@ function key(prefix: string, id: string): string {
 }
 
 export class OAuthStore {
-  constructor(private kv: KVNamespace) {}
+  constructor(private kv: StringKv) {}
 
   async putClient(client: OAuthClient): Promise<void> {
     await this.kv.put(key("client", client.client_id), JSON.stringify(client), {
