@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import app from "../transports/http";
+import app from "../transports/http.js";
 
 // Minimal KV mock that stores values in a Map
 function createKVMock(): KVNamespace {

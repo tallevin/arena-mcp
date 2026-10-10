@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [feature/pdf-retrieval]
   pull_request:
     branches: [main]
 
@@ -12,11 +14,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: yarn
 
       - run: yarn install --frozen-lockfile
 
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr
+
       - run: yarn typecheck
 
       - run: yarn test
+
+      - run: yarn build
+
+      - run: node --input-type=module -e 'await import("./dist/server.js")'
+
+      - run: yarn wrangler deploy --dry-run

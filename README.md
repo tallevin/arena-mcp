@@ -1,73 +1,183 @@
-# @aredotna/mcp
+# Are.na MCP with PDF reading
 
-MCP server for the [Are.na](https://www.are.na) API. Provides 40+ auto-generated tools from the OpenAPI spec plus custom composite tools.
+A fork of [aredotna/mcp](https://github.com/aredotna/mcp) that lets MCP clients
+read PDF attachments in Are.na, retrieve selected pages and cite the source.
+All 52 existing Are.na tools and the upstream OAuth flow are retained. Two PDF
+tools bring the total to 54.
 
-## Quick start
+The server supports **Vercel**, local **stdio**, and the original **Cloudflare
+Workers** transport. Vercel is the preferred hosted setup for this fork; a
+Cloudflare account is optional.
 
-The hosted server is available at `https://mcp.are.na/mcp`.
+## Hosted endpoint and current status
 
-### Claude Desktop (connector)
+The fork's stable MCP URL is:
 
-The easiest way to connect. Go to **Settings > Connectors > Add custom connector** and enter:
-
-- **Name**: `Are.na`
-- **Remote MCP server URL**: `https://mcp.are.na/mcp`
-
-Leave the OAuth Client ID and Secret fields blank — the server supports Dynamic Client Registration. Click **Add**, then authorize with your Are.na account when prompted.
-
-### Claude Desktop (config file)
-
-You can also add the server directly in `claude_desktop_config.json`. If your version supports the `url` format:
-
-```json
-{
-  "mcpServers": {
-    "arena": {
-      "type": "http",
-      "url": "https://mcp.are.na/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_ARENA_TOKEN"
-      }
-    }
-  }
-}
+```text
+https://arena-mcp-tallevins-projects.vercel.app/mcp
 ```
 
-Get a personal access token from [are.na/settings/personal-access-tokens](https://www.are.na/settings/personal-access-tokens).
+Verified on **10 October 2026**:
 
-If your version only supports `command` (stdio), you can use [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy) to bridge to the remote server. Install [uv](https://docs.astral.sh/uv/) first (`brew install uv`), then:
+| Item                 | Status                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| Vercel deployment    | Running; [view project](https://vercel.com/tallevins-projects/arena-mcp)                              |
+| PDF reading          | Live test retrieved pages 1 and 2 of a private 21-page PDF with text and citations                    |
+| Tools                | All 54 available, including the original 52                                                           |
+| Tests                | 56 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions)                            |
+| Durable hosted cache | Redis connected; a live PDF cache hit survived a production redeployment                              |
+| OAuth sign-in        | Application credentials configured; live client registration and redirect to Are.na verified          |
+| Production access    | Public HTTPS endpoint; Are.na authentication required for MCP calls; previews remain Vercel-protected |
+| Hosted OCR           | Optional adapter implemented; no external provider configured                                         |
+
+Live verification used the production URL without Vercel credentials. Redis
+reads/writes, OAuth discovery, client registration and the exact registered
+Are.na callback all passed. Completing Are.na consent from ChatGPT and the final
+browser token exchange still need verification. Source and release history are
+in [pull request #1](https://github.com/tallevin/arena-mcp/pull/1).
+
+The official `https://mcp.are.na/mcp` endpoint runs the upstream server. Use this
+fork's endpoint for the PDF tools. Keep an existing official connection available
+until sign-in to the new endpoint is verified.
+
+## Connect to ChatGPT
+
+The existing Vercel deployment already has Redis and Are.na application
+credentials configured. Add the endpoint as a separate custom MCP connection:
+
+1. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select the plus button,
+   and choose **Add custom MCP server**.
+2. Use a name such as **Are.na PDF** and the description **Read Are.na channels
+   and PDF attachments with page citations and cached page retrieval**.
+3. Set the public server URL to
+   `https://arena-mcp-tallevins-projects.vercel.app/mcp` and authentication to
+   **OAuth**. Let the server register the client automatically; do not enter the
+   Are.na application's client ID or secret into ChatGPT.
+4. Review the connection prompt, create the plugin and complete Are.na sign-in
+   and consent. Confirm that `read_pdf_block` and `get_pdf_pages` appear among
+   the 54 discovered tools.
+5. Start a new chat, select **Are.na PDF** with `@`, and ask it to read a PDF
+   from one of your Are.na channels, citing page numbers. Follow up by requesting
+   specific physical pages.
+
+Account and workspace policies can affect custom MCP availability. These steps
+follow [OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt#add-the-mcp-server).
+If sign-in fails, confirm that the Are.na application callback exactly matches
+`https://arena-mcp-tallevins-projects.vercel.app/callback`, then inspect Vercel's
+runtime logs. Avoid sharing credentials or complete OAuth redirect URLs.
+
+## PDF tools
+
+| Tool             | Use                                                                               |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `read_pdf_block` | Download an accessible PDF block and extract text, optionally within a page range |
+| `get_pdf_pages`  | Return selected physical pages, reusing cached extraction                         |
+
+Example MCP tool calls:
 
 ```json
-{
-  "mcpServers": {
-    "arena": {
-      "command": "/opt/homebrew/bin/uvx",
-      "args": [
-        "mcp-proxy",
-        "--transport",
-        "streamablehttp",
-        "-H",
-        "Authorization",
-        "Bearer YOUR_ARENA_TOKEN",
-        "https://mcp.are.na/mcp"
-      ]
-    }
-  }
-}
+{"name":"read_pdf_block","arguments":{"block_id":12345}}
+{"name":"read_pdf_block","arguments":{"block_id":12345,"start_page":2,"end_page":5}}
+{"name":"get_pdf_pages","arguments":{"block_id":12345,"pages":[2,7,8]}}
+{"name":"get_pdf_pages","arguments":{"block_id":12345,"pages":[7],"ocr":"auto","language":"eng"}}
 ```
 
-> **Note:** Use the full path to `uvx` (e.g. `/opt/homebrew/bin/uvx`). Claude Desktop may not have `uvx` on its `PATH`.
+Each page includes text, a 1-based physical page number, a printed label when
+available, an Are.na citation and a PDF URL with `#page=N`. Retrieval uses physical
+page numbers; printed labels can differ. Selected pages are sorted and deduplicated.
 
-### Claude Desktop (local)
+Both tools accept `refresh`, `max_chars`, `start_char`, `ocr` and `language`.
+Responses default to a 100,000-character budget, with a maximum of 250,000.
+Truncated text includes a `continuation` with the page and character offset;
+resume through `get_pdf_pages`. Up to 50 explicit pages may be requested per call.
 
-To run the server locally via stdio, clone the repo, run `yarn install && yarn generate`, then use absolute paths in your config:
+The first read downloads the complete PDF and extracts its native text. Selected
+page reads return a subset of that extraction; they do not download individual
+PDF byte ranges. Text extraction does not reconstruct diagrams or complex tables.
+See [PDF tools, limits and OCR protocol](docs/pdf-tools.md) for full behavior.
+
+## Set up Vercel
+
+For the existing deployment, open the [arena-mcp Vercel project](https://vercel.com/tallevins-projects/arena-mcp).
+To deploy another instance, import this repository with framework **Hono**,
+Node.js **24.x**, and the branch containing the PDF implementation. Leave build
+settings at the framework defaults. The root `server.ts` exports the Hono app;
+`vercel.json` selects the framework. The current project uses a 300-second timeout.
+
+1. **Connect Upstash Redis** through the project's **Storage** tab and Vercel
+   Marketplace. Choose the plan and region, then attach its environment variables
+   to the deployment environment. The adapter accepts either pair below:
+
+   | URL variable             | Token variable             |
+   | ------------------------ | -------------------------- |
+   | `UPSTASH_REDIS_REST_URL` | `UPSTASH_REDIS_REST_TOKEN` |
+   | `KV_REST_API_URL`        | `KV_REST_API_TOKEN`        |
+
+   OAuth state and PDF text use separate `arena:oauth` and `arena:pdf` prefixes.
+   Use a private database or credentials scoped to this application. If the
+   deployment integration lacks storage permissions, complete this step in
+   Vercel's dashboard.
+
+2. **Register an Are.na OAuth application** at
+   [Are.na OAuth applications](https://www.are.na/developers/oauth/applications).
+   For the existing deployment, set its callback to:
+
+   ```text
+   https://arena-mcp-tallevins-projects.vercel.app/callback
+   ```
+
+   Save `ARENA_OAUTH_CLIENT_ID` and `ARENA_OAUTH_CLIENT_SECRET` as Secret
+   environment variables in Vercel for the deployment environment. Another
+   instance needs its own stable hostname in the callback. A fork needs its own
+   application credentials; upstream credentials are not included.
+
+3. **Configure production access** under **Settings → Deployment Protection**.
+   The MCP client must be able to reach production without signing in to Vercel.
+   Review and authorize that access change; keep previews protected. Each MCP
+   caller still requires Are.na authentication. The Vercel adapter ignores a
+   server-wide `ARENA_ACCESS_TOKEN` fallback.
+
+4. **Redeploy** after attaching storage and setting credentials. Check the root
+   URL for `oauth_configured: true` and `durable_cache_configured: true`. These
+   flags indicate configuration, not a successful database health check. Before
+   setup is complete, OAuth routes return HTTP 503; bearer MCP requests can use
+   a temporary memory cache.
+
+5. **Verify and connect**. Confirm that unauthenticated `/mcp` requests receive
+   an application-generated 401 with OAuth discovery metadata. With an Are.na
+   token set privately as `ARENA_ACCESS_TOKEN` in your local environment, run:
+
+   ```sh
+   yarn smoke:pdf https://arena-mcp-tallevins-projects.vercel.app/mcp <pdf-block-id>
+   ```
+
+   Then connect that URL in your MCP client and complete Are.na sign-in. Hosted
+   clients discover the OAuth endpoints and register automatically; the Are.na
+   application ID and secret belong on the server.
+
+## Local setup and clients
+
+Use Node.js **22 or newer** and Yarn. Current CI and Vercel deployment use Node.js 24. Generated API tools are committed, so generation is not required to start.
+
+```sh
+git clone https://github.com/tallevin/arena-mcp.git
+cd arena-mcp
+yarn install --frozen-lockfile
+yarn typecheck
+yarn test
+yarn build
+```
+
+For local stdio, set `ARENA_ACCESS_TOKEN` privately in the environment and run
+`yarn dev` for development. When configuring an MCP client, launch `tsx` directly
+so package-manager output does not enter the stdio protocol:
 
 ```json
 {
   "mcpServers": {
-    "arena": {
-      "command": "/path/to/arena/mcp/node_modules/.bin/tsx",
-      "args": ["/path/to/arena/mcp/src/transports/stdio.ts"],
+    "arena-pdf": {
+      "command": "/absolute/path/arena-mcp/node_modules/.bin/tsx",
+      "args": ["/absolute/path/arena-mcp/src/transports/stdio.ts"],
       "env": {
         "ARENA_ACCESS_TOKEN": "YOUR_ARENA_TOKEN"
       }
@@ -76,136 +186,98 @@ To run the server locally via stdio, clone the repo, run `yarn install && yarn g
 }
 ```
 
-> **Note:** You must use absolute paths for both `command` and `args`. Claude Desktop does not reliably resolve relative paths or respect `cwd`. Using `yarn dev` or bare `npx tsx` will not work — `yarn` writes to stdout, and `npx` without a cwd cannot find the script.
+Replace the paths with your checkout's absolute paths. Configure the client's
+working directory when supported, or set `PDF_CACHE_DIR` to an absolute location.
+The default disk cache is `.cache/pdf` relative to the working directory.
 
-### Claude Code
+Once hosted configuration is complete, remote clients use the fork's URL with
+Streamable HTTP and OAuth. Clients that support bearer headers can also use an
+Are.na personal access token. Tokens belong in private client configuration.
 
-```bash
-claude mcp add --transport http arena https://mcp.are.na/mcp
-```
-
-Authenticate via `/mcp` when prompted.
-
-### Codex Desktop
-
-In the Codex desktop app, open **Settings > MCP servers > Add custom MCP**.
-
-Use the hosted server with OAuth, the same as the Claude connector flow. Select **Streamable HTTP** and enter:
-
-- **Name**: `Are.na`
-- **URL**: `https://mcp.are.na/mcp`
-
-Leave environment variables and passthrough blank. Save the server, then click **Authenticate** from the MCP server settings when it appears. The server supports Dynamic Client Registration, so you do not need to create or paste an OAuth client ID or secret.
-
-If you need to run the server locally over stdio instead, clone the repo, run `yarn install && yarn generate`, then add a custom MCP with:
-
-- **Name**: `Are.na`
-- **Transport**: `STDIO`
-- **Command to launch**: `/path/to/arena/mcp/node_modules/.bin/tsx`
-- **Arguments**: `/path/to/arena/mcp/src/transports/stdio.ts`
-- **Environment variables**: `ARENA_ACCESS_TOKEN` = `YOUR_ARENA_TOKEN`
-- **Working directory**: `/path/to/arena/mcp`
-
-Use absolute paths for the command, argument, and working directory. The local stdio server uses a personal access token instead of OAuth; get one from [are.na/settings/personal-access-tokens](https://www.are.na/settings/personal-access-tokens).
-
-### Codex CLI
-
-Codex CLI stores MCP servers in `~/.codex/config.toml`. Add the hosted server:
+For Codex CLI, for example:
 
 ```toml
-[mcp_servers.arena]
-url = "https://mcp.are.na/mcp"
+[mcp_servers.arena_pdf]
+url = "https://arena-mcp-tallevins-projects.vercel.app/mcp"
 ```
 
-Then authenticate it:
+Then run `codex mcp login arena_pdf`. Other remote clients use the same endpoint
+and their supported authentication flow.
 
-```bash
-codex mcp login arena
-```
+## Caching and authentication
 
-You can check the configured server from the Codex TUI with `/mcp`.
+Every PDF request checks current block access using the caller's token before
+reading cached text. Cache keys hash the token, block ID and attachment metadata;
+changed files, changed tokens and `refresh: true` invalidate the relevant result.
+The Are.na API token is never sent to attachment download hosts.
 
-### Cursor
+PDF cache entries expire after seven days. Local stdio stores extracted text in
+private disk files. Vercel stores it in Redis with versioned chunks for larger
+entries; Cloudflare uses a separate KV binding. Without durable storage, HTTP
+uses a bounded 16 MiB cache per instance. Raw PDFs and bearer tokens are not
+persisted in the PDF cache. The separate OAuth store retains short-lived token
+exchanges as required by the original authentication flow.
 
-Add the server under **Settings > MCP Servers** with URL `https://mcp.are.na/mcp` and an `Authorization: Bearer YOUR_ARENA_TOKEN` header.
+Downloads are restricted to approved Are.na attachment hosts, including every
+redirect, and limited to 25 MiB. Extraction is limited to 500 pages and 5 million
+characters, with a cooperative deadline. Hosting resource limits may impose
+smaller practical limits. Concurrent cold requests in different instances can
+repeat extraction.
 
-## Development
+## Optional OCR
 
-```bash
-git clone https://github.com/aredotna/mcp.git
-cd mcp
-yarn install
-yarn generate   # fetch OpenAPI spec, generate types + tools
-```
+OCR defaults to `off`. `auto` processes selected pages with fewer than 20
+non-whitespace characters; `force` processes all selected pages. A sparse page
+may be blank rather than scanned. OCR is limited to 20 pages per call and can
+contain recognition errors.
 
-### Running locally
+- **Local OCR:** set `PDF_OCR=local`. Poppler's `pdftoppm`, Tesseract and the
+  requested language data must already be installed. Optional path overrides are
+  `PDF_POPPLER_PATH` and `PDF_TESSERACT_PATH`.
+- **Hosted OCR:** explicitly configure `PDF_OCR_ENDPOINT` and, if needed,
+  `PDF_OCR_TOKEN`. The HTTPS provider receives the entire PDF, even for selected
+  pages. There is no default third-party provider. Hosted deployment does not
+  include the local OCR executables.
 
-**stdio** — single-user, for use with Claude Desktop or other MCP clients:
+See [the OCR request/response protocol](docs/pdf-tools.md#local-setup-and-optional-ocr)
+before connecting a hosted provider.
 
-```bash
-ARENA_ACCESS_TOKEN=your-token yarn dev
-```
+## Cloudflare alternative
 
-**HTTP** — runs a local Cloudflare Workers dev server:
+The original HTTP transport remains available through `yarn dev:http` and
+`yarn deploy`. Local Workers development uses ignored `.dev.vars` for credentials;
+Wrangler supplies local KV storage.
 
-```bash
-cp .dev.vars.example .dev.vars
-# Set your tokens in .dev.vars (see .dev.vars.example)
-yarn dev:http
-```
+For deployment, create your own `OAUTH_KV` and `PDF_CACHE` namespaces, replace the
+placeholder IDs in `wrangler.toml`, and configure an Are.na OAuth application
+for your worker's `/callback` URL. Store its credentials through Wrangler secrets.
 
-The HTTP server requires a KV namespace for OAuth state. For local development, Wrangler provides an in-memory KV automatically. For production, create a KV namespace and update the `id` in `wrangler.toml` (KV is included in Cloudflare's free tier):
+The Cloudflare GitHub Actions deployment workflow is **manual**. It needs
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets, plus
+separately configured Worker storage and OAuth credentials. Pushes to `main`
+do not automatically run that workflow. Full instructions are in the
+[Cloudflare setup guide](docs/pdf-tools.md#cloudflare-alternative).
 
-```bash
-npx wrangler kv namespace create OAUTH_KV
-```
+## Development and verification
 
-You also need to set the Are.na OAuth application credentials as secrets:
-
-```bash
-npx wrangler secret put ARENA_OAUTH_CLIENT_ID
-npx wrangler secret put ARENA_OAUTH_CLIENT_SECRET
-```
-
-Register your OAuth application at [are.na/developers/oauth/applications](https://www.are.na/developers/oauth/applications) with redirect URI `https://mcp.are.na/callback` (or `http://127.0.0.1:8787/callback` for local dev).
-
-### Testing
-
-```bash
+```sh
 yarn typecheck
 yarn test
+yarn build
+node --input-type=module -e 'await import("./dist/server.js")'
+yarn wrangler deploy --dry-run
 ```
 
-### Formatting
+Tests cover PDF extraction, labels and citations, page selection, continuation,
+access revocation, cache isolation and reuse, download restrictions, OCR, Redis
+chunk handling, all tools, and a simulated PKCE OAuth round trip across instances.
+The image-only OCR test requires Poppler/Tesseract; CI installs them. The compiled
+Node startup check catches module-loading failures that TypeScript tests alone
+may miss.
 
-```bash
-yarn format
-```
-
-Prettier runs automatically on staged files via a pre-commit hook.
-
-## Deployment
-
-Pushes to `main` are automatically deployed to Cloudflare Workers via GitHub Actions.
-
-To deploy manually:
-
-```bash
-yarn deploy
-```
-
-Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (set as GitHub repo secrets for CI, or via `wrangler login` locally).
-
-## Adding custom tools
-
-Create a file in `src/tools/custom/`, export a register function, and add it to `src/tools/index.ts`. See `src/tools/custom/search-and-connect.ts` for an example.
-
-## Regenerating tools
-
-When the Are.na API spec changes:
-
-```bash
-yarn generate
-```
-
-This fetches the latest spec and regenerates TypeScript types and tool registrations.
+To add a tool, register it under `src/tools/custom/` and add its registration to
+`src/tools/index.ts`. When the Are.na API specification changes, `yarn generate`
+updates generated types and tool registrations. Local module imports use `.js`
+extensions so compiled files work in Node as well as bundled Workers builds.
+Run `yarn format` to apply Prettier; staged files are also formatted by the
+pre-commit hook.

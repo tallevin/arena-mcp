@@ -1,11 +1,17 @@
-name = "aredotna-mcp"
+name = "tallevin-arena-mcp"
 main = "src/transports/http.ts"
-compatibility_date = "2025-01-01"
+compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "OAUTH_KV"
-id = "81273da3369047b2a22fe5a005a6bbf6"
+# Replace with your own namespace ID. Never reuse the upstream namespace.
+id = "00000000000000000000000000000000"
+
+[[kv_namespaces]]
+binding = "PDF_CACHE"
+# Separate cache from OAuth state; expires automatically after seven days.
+id = "00000000000000000000000000000001"
 
 [observability]
 enabled = true

@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { jsonSchemaToZodString } from "../src/lib/json-schema-to-zod";
+import { jsonSchemaToZodString } from "../src/lib/json-schema-to-zod.js";
 
 const SPEC_URL = "https://api.are.na/v3/openapi.json";
 const SPEC_PATH = "src/generated/openapi.json";
@@ -337,7 +337,7 @@ function main() {
     `import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";`,
   );
   lines.push(
-    `import { withArenaClient, textResult, errorResult } from "../lib/tool-helpers";`,
+    `import { withArenaClient, textResult, errorResult } from "../lib/tool-helpers.js";`,
   );
   lines.push(``);
   lines.push(

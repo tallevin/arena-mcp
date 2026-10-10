@@ -1,16 +1,43 @@
+import type { StringKv } from "../auth/kv.js";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { createMcpServer } from "../server";
-import { oauthRoutes } from "../auth/routes";
+import { createMcpServer } from "../server.js";
+import { oauthRoutes } from "../auth/routes.js";
+import { PdfService } from "../pdf/service.js";
+import { KvPdfCache } from "../pdf/cache.js";
+import { RemoteOcrProvider } from "../pdf/remote-ocr.js";
 
-interface Env {
+export interface Env {
   ARENA_ACCESS_TOKEN?: string;
-  OAUTH_KV: KVNamespace;
+  OAUTH_KV: StringKv;
   ARENA_OAUTH_CLIENT_ID: string;
   ARENA_OAUTH_CLIENT_SECRET: string;
+  PDF_CACHE?: StringKv;
+  PDF_OCR_ENDPOINT?: string;
+  PDF_OCR_TOKEN?: string;
+}
+
+const pdfServices = new WeakMap<
+  object,
+  { signature: string; service: PdfService }
+>();
+function pdfService(env: Env): PdfService | undefined {
+  if (!env.PDF_CACHE && !env.PDF_OCR_ENDPOINT) return undefined;
+  const identity = env.PDF_CACHE ?? env.OAUTH_KV;
+  const signature = JSON.stringify([env.PDF_OCR_ENDPOINT, env.PDF_OCR_TOKEN]);
+  const existing = pdfServices.get(identity);
+  if (existing?.signature === signature) return existing.service;
+  const service = new PdfService({
+    cache: env.PDF_CACHE ? new KvPdfCache(env.PDF_CACHE) : undefined,
+    ocr: env.PDF_OCR_ENDPOINT
+      ? new RemoteOcrProvider(env.PDF_OCR_ENDPOINT, env.PDF_OCR_TOKEN)
+      : undefined,
+  });
+  pdfServices.set(identity, { signature, service });
+  return service;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -23,7 +50,7 @@ app.get("/", (c) => {
     version: "0.1.0",
     transport: "streamable-http",
     endpoint: "/mcp",
-    url: "https://mcp.are.na/mcp",
+    url: `${new URL(c.req.url).origin}/mcp`,
     docs: "https://github.com/aredotna/mcp",
   });
 });
@@ -71,7 +98,7 @@ app.post("/mcp", async (c) => {
     scopes: [],
   };
 
-  const server = createMcpServer();
+  const server = createMcpServer(pdfService(c.env));
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
