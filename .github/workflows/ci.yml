@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [feature/pdf-retrieval]
+    branches: [main, feature/pdf-retrieval]
   pull_request:
     branches: [main]
 
