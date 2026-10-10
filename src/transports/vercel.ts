@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
-import type { StringKv } from "../auth/kv";
-import httpApp, { type Env } from "./http";
-import { RedisKv } from "../pdf/redis";
+import type { StringKv } from "../auth/kv.js";
+import httpApp, { type Env } from "./http.js";
+import { RedisKv } from "../pdf/redis.js";
 
 export interface VercelEnvironment {
   UPSTASH_REDIS_REST_URL?: string;

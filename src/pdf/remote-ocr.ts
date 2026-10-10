@@ -1,4 +1,4 @@
-import type { OcrProvider } from "./service";
+import type { OcrProvider } from "./service.js";
 
 /** An operator-selected endpoint; disabled unless explicitly configured. */
 export class RemoteOcrProvider implements OcrProvider {

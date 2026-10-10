@@ -185,7 +185,7 @@ not independently audited or redesigned by this work.
   writes and incomplete/failed chunk handling.
 - Vercel discovery, authentication challenges, all 54 tools, and a simulated
   complete PKCE OAuth round trip across independent handler instances.
-- TypeScript checks, build and Cloudflare deployment dry run.
+- TypeScript checks, compiled Node.js server startup, build and Cloudflare deployment dry run.
 
 Hosted Redis persistence and a browser OAuth round trip on the new hostname
 remain unverified until the storage/application steps above are completed.

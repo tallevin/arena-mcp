@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { StringKv } from "../auth/kv";
-import { CACHE_TTL_SECONDS } from "./cache";
+import type { StringKv } from "../auth/kv.js";
+import { CACHE_TTL_SECONDS } from "./cache.js";
 
 interface RedisStrings {
   get(key: string): Promise<string | null>;

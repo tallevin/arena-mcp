@@ -1,14 +1,14 @@
-import type { StringKv } from "../auth/kv";
+import type { StringKv } from "../auth/kv.js";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { createMcpServer } from "../server";
-import { oauthRoutes } from "../auth/routes";
-import { PdfService } from "../pdf/service";
-import { KvPdfCache } from "../pdf/cache";
-import { RemoteOcrProvider } from "../pdf/remote-ocr";
+import { createMcpServer } from "../server.js";
+import { oauthRoutes } from "../auth/routes.js";
+import { PdfService } from "../pdf/service.js";
+import { KvPdfCache } from "../pdf/cache.js";
+import { RemoteOcrProvider } from "../pdf/remote-ocr.js";
 
 export interface Env {
   ARENA_ACCESS_TOKEN?: string;

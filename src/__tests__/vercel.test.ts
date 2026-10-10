@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createVercelHandler } from "../transports/vercel";
-import { RedisKv } from "../pdf/redis";
+import { createVercelHandler } from "../transports/vercel.js";
+import { RedisKv } from "../pdf/redis.js";
 
 function redisMock() {
   const values = new Map<string, string>();

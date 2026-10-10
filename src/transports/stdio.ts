@@ -1,10 +1,10 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { createMcpServer } from "../server";
-import { PdfService } from "../pdf/service";
-import { DiskPdfCache, LocalOcrProvider } from "../pdf/local";
-import { RemoteOcrProvider } from "../pdf/remote-ocr";
+import { createMcpServer } from "../server.js";
+import { PdfService } from "../pdf/service.js";
+import { DiskPdfCache, LocalOcrProvider } from "../pdf/local.js";
+import { RemoteOcrProvider } from "../pdf/remote-ocr.js";
 import { resolve } from "node:path";
 
 function injectAuthInfo(transport: StdioServerTransport, authInfo: AuthInfo) {

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createVercelHandler } from "./src/transports/vercel";
+import { createVercelHandler } from "./src/transports/vercel.js";
 
 // Vercel detects this root Hono entry and supplies the Node.js runtime.
 const handle = createVercelHandler(process.env);

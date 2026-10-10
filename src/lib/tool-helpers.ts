@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { createArenaClient, type ArenaClient } from "../client";
+import { createArenaClient, type ArenaClient } from "../client.js";
 
 export function textResult(data: unknown): CallToolResult {
   return {

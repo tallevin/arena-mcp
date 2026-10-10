@@ -4,7 +4,7 @@ import {
   errorResult,
   requireAuth,
   AuthRequiredError,
-} from "../lib/tool-helpers";
+} from "../lib/tool-helpers.js";
 
 describe("textResult", () => {
   it("wraps data as pretty-printed JSON text content", () => {

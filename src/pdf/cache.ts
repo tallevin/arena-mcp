@@ -1,4 +1,4 @@
-import type { StringKv } from "../auth/kv";
+import type { StringKv } from "../auth/kv.js";
 /** Cache entries contain extracted text, never bearer tokens or raw PDFs. */
 export interface PdfCache {
   get(key: string): Promise<string | null>;

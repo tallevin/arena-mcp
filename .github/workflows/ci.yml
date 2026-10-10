@@ -27,4 +27,6 @@ jobs:
 
       - run: yarn build
 
+      - run: node --input-type=module -e 'await import("./dist/server.js")'
+
       - run: yarn wrangler deploy --dry-run

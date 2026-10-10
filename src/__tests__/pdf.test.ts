@@ -2,17 +2,17 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { PDFDocument, PDFName, StandardFonts } from "pdf-lib";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer } from "../server";
-import { PdfService, type PdfBlock } from "../pdf/service";
-import { extractPdf } from "../pdf/extract";
+import { createMcpServer } from "../server.js";
+import { PdfService, type PdfBlock } from "../pdf/service.js";
+import { extractPdf } from "../pdf/extract.js";
 import {
   downloadPdf,
   validateAttachmentUrl,
   MAX_PDF_BYTES,
-} from "../pdf/download";
-import { MemoryPdfCache, KvPdfCache } from "../pdf/cache";
-import { RemoteOcrProvider } from "../pdf/remote-ocr";
-import app from "../transports/http";
+} from "../pdf/download.js";
+import { MemoryPdfCache, KvPdfCache } from "../pdf/cache.js";
+import { RemoteOcrProvider } from "../pdf/remote-ocr.js";
+import app from "../transports/http.js";
 
 afterEach(() => vi.unstubAllGlobals());
 

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerGeneratedTools } from "./generated/tools";
-import { registerCustomTools } from "./tools/index";
-import { PdfService } from "./pdf/service";
+import { registerGeneratedTools } from "./generated/tools.js";
+import { registerCustomTools } from "./tools/index.js";
+import { PdfService } from "./pdf/service.js";
 
 const defaultPdfService = new PdfService();
 

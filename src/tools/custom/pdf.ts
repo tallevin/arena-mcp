@@ -1,7 +1,11 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { errorResult, requireAuth, textResult } from "../../lib/tool-helpers";
-import { PdfService, type PdfReadOptions } from "../../pdf/service";
+import {
+  errorResult,
+  requireAuth,
+  textResult,
+} from "../../lib/tool-helpers.js";
+import { PdfService, type PdfReadOptions } from "../../pdf/service.js";
 
 const common = {
   block_id: z

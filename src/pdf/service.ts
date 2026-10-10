@@ -1,7 +1,11 @@
-import { createArenaClient } from "../client";
-import { MemoryPdfCache, type PdfCache } from "./cache";
-import { downloadPdf, MAX_PDF_BYTES, validateAttachmentUrl } from "./download";
-import { extractPdf, type ExtractedPage } from "./extract";
+import { createArenaClient } from "../client.js";
+import { MemoryPdfCache, type PdfCache } from "./cache.js";
+import {
+  downloadPdf,
+  MAX_PDF_BYTES,
+  validateAttachmentUrl,
+} from "./download.js";
+import { extractPdf, type ExtractedPage } from "./extract.js";
 
 export interface PdfBlock {
   id: number;

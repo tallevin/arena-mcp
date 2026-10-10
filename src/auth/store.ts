@@ -1,4 +1,4 @@
-import type { StringKv } from "./kv";
+import type { StringKv } from "./kv.js";
 /**
  * KV-backed store for OAuth state: client registrations, PKCE auth flows,
  * and authorization code-to-token mappings.

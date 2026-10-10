@@ -4,7 +4,7 @@ import {
   withArenaClient,
   textResult,
   errorResult,
-} from "../../lib/tool-helpers";
+} from "../../lib/tool-helpers.js";
 
 interface Block {
   id: number;

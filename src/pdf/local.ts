@@ -11,8 +11,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { CACHE_TTL_SECONDS, type PdfCache } from "./cache";
-import type { OcrProvider } from "./service";
+import { CACHE_TTL_SECONDS, type PdfCache } from "./cache.js";
+import type { OcrProvider } from "./service.js";
 
 const execute = promisify(execFile);
 

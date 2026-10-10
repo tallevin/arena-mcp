@@ -12,9 +12,9 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { DiskPdfCache, LocalOcrProvider } from "../pdf/local";
-import { extractPdf } from "../pdf/extract";
-import { hashKey } from "../pdf/service";
+import { DiskPdfCache, LocalOcrProvider } from "../pdf/local.js";
+import { extractPdf } from "../pdf/extract.js";
+import { hashKey } from "../pdf/service.js";
 
 const execute = promisify(execFile);
 function hasProgram(program: string) {
