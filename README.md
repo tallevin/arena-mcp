@@ -19,16 +19,16 @@ https://arena-mcp-tallevins-projects.vercel.app/mcp
 
 Verified on **11 October 2026**:
 
-| Item                 | Status                                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| Vercel deployment    | Running; [view project](https://vercel.com/tallevins-projects/arena-mcp)                              |
-| PDF reading          | Live test retrieved pages 1 and 2 of a private 21-page PDF with text and citations                    |
-| Tools                | All 54 available, including the original 52                                                           |
-| Tests                | 61 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions)                            |
-| Durable hosted cache | Redis connected; a live PDF cache hit survived a production redeployment                              |
-| OAuth sign-in        | Application credentials configured; live client registration and redirect to Are.na verified          |
-| Production access    | Public HTTPS endpoint; Are.na authentication required for MCP calls; previews remain Vercel-protected |
-| Hosted OCR           | Bundled English OCR on Vercel; opt-in through `ocr: "auto"` or `"force"`                              |
+| Item                 | Status                                                                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Vercel deployment    | Running; [view project](https://vercel.com/tallevins-projects/arena-mcp)                                                     |
+| PDF reading          | Live test returned all 21 pages and 33,317 characters of a private PDF, without truncation; targeted pages matched the cache |
+| Tools                | All 54 available, including the original 52                                                                                  |
+| Tests                | 61 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions)                                                   |
+| Durable hosted cache | Redis connected; a live PDF cache hit survived a production redeployment                                                     |
+| OAuth sign-in        | Application credentials configured; live client registration and redirect to Are.na verified                                 |
+| Production access    | Public HTTPS endpoint; Are.na authentication required for MCP calls; previews remain Vercel-protected                        |
+| Hosted OCR           | Bundled English OCR on Vercel; opt-in through `ocr: "auto"` or `"force"`                                                     |
 
 Live verification used the production URL without Vercel credentials. Redis
 reads/writes, OAuth discovery, client registration and the exact registered
@@ -96,6 +96,29 @@ The first read downloads the complete PDF and extracts its native text. Selected
 page reads return a subset of that extraction; they do not download individual
 PDF byte ranges. Text extraction does not reconstruct diagrams or complex tables.
 See [PDF tools, limits and OCR protocol](docs/pdf-tools.md) for full behavior.
+
+### Full text and verbatim extraction
+
+The PDF tools return the document's **full extracted wording**, without
+summarising, paraphrasing or imposing a quotation-length limit. Each page's
+`text` field contains the extraction output. Native PDF extraction can change
+spacing, line breaks and reading order; OCR can misrecognise characters. This is
+text extraction, not a byte-for-byte copy of the PDF or a reconstruction of its
+layout.
+
+To retrieve a complete document, call `read_pdf_block` without a page range. If
+the response contains `continuation` or `omitted_pages`, retrieve the remainder
+using the returned page and character offsets. Raising `max_chars` to 250,000
+can reduce the number of calls; it does not remove the document safety limits.
+See [complete-read instructions](docs/pdf-tools.md#complete-document-reads).
+
+The MCP provides source text to its client. A chat application's rules can
+separately limit what its assistant reproduces in a reply; changing this server
+does not override those rules. Access to an Are.na block also does not establish
+copyright ownership or a licence to reproduce its contents.
+
+These two tools accept PDF attachment blocks. An ordinary web-link block is not
+an input to the PDF extractor, and this fork does not add article-text fetching.
 
 ## Set up Vercel
 
