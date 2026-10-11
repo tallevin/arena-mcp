@@ -17,23 +17,24 @@ The fork's stable MCP URL is:
 https://arena-mcp-tallevins-projects.vercel.app/mcp
 ```
 
-Verified on **10 October 2026**:
+Verified on **11 October 2026**:
 
 | Item                 | Status                                                                                                |
 | -------------------- | ----------------------------------------------------------------------------------------------------- |
 | Vercel deployment    | Running; [view project](https://vercel.com/tallevins-projects/arena-mcp)                              |
 | PDF reading          | Live test retrieved pages 1 and 2 of a private 21-page PDF with text and citations                    |
 | Tools                | All 54 available, including the original 52                                                           |
-| Tests                | 56 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions)                            |
+| Tests                | 61 passing; [GitHub checks](https://github.com/tallevin/arena-mcp/actions)                            |
 | Durable hosted cache | Redis connected; a live PDF cache hit survived a production redeployment                              |
 | OAuth sign-in        | Application credentials configured; live client registration and redirect to Are.na verified          |
 | Production access    | Public HTTPS endpoint; Are.na authentication required for MCP calls; previews remain Vercel-protected |
-| Hosted OCR           | Optional adapter implemented; no external provider configured                                         |
+| Hosted OCR           | Bundled English OCR on Vercel; opt-in through `ocr: "auto"` or `"force"`                              |
 
 Live verification used the production URL without Vercel credentials. Redis
 reads/writes, OAuth discovery, client registration and the exact registered
-Are.na callback all passed. Completing Are.na consent from ChatGPT and the final
-browser token exchange still need verification. Source and release history are
+Are.na callback all passed. The account owner also reported a successful ChatGPT
+connection and PDF retrieval; that client-side test was not independently repeated
+by the deployment smoke test. Source and release history are
 in [pull request #1](https://github.com/tallevin/arena-mcp/pull/1).
 
 The official `https://mcp.are.na/mcp` endpoint runs the upstream server. Use this
@@ -234,10 +235,36 @@ contain recognition errors.
 - **Local OCR:** set `PDF_OCR=local`. Poppler's `pdftoppm`, Tesseract and the
   requested language data must already be installed. Optional path overrides are
   `PDF_POPPLER_PATH` and `PDF_TESSERACT_PATH`.
-- **Hosted OCR:** explicitly configure `PDF_OCR_ENDPOINT` and, if needed,
+- **Vercel OCR:** English (`language: "eng"`) is included using PDFium and
+  Tesseract WebAssembly. No extra provider, API key, system executable or runtime
+  language download is needed. Processing stays within the existing server.
+  Selected pages are rendered at up to 150 DPI, with a 3,000-pixel side limit.
+  Each job has a hard 180-second deadline; at most two jobs run per process.
+  OCR results use the existing seven-day cache. Set `PDF_OCR=off` and redeploy
+  to disable the bundled provider.
+- **External hosted OCR:** explicitly configure `PDF_OCR_ENDPOINT` and, if needed,
   `PDF_OCR_TOKEN`. The HTTPS provider receives the entire PDF, even for selected
-  pages. There is no default third-party provider. Hosted deployment does not
-  include the local OCR executables.
+  pages. There is no default third-party provider. An endpoint overrides Vercel's
+  bundled engine and can support other languages. Cloudflare uses this adapter;
+  its Workers runtime does not include the Node-only bundled engine.
+
+For the image-only [Modern Monograms — Page 97](https://www.are.na/block/4617726)
+block, request its first physical page:
+
+```json
+{
+  "name": "get_pdf_pages",
+  "arguments": {
+    "block_id": 4617726,
+    "pages": [1],
+    "ocr": "auto",
+    "language": "eng"
+  }
+}
+```
+
+The title's “Page 97” does not make it physical PDF page 97. Decorative monograms
+may produce little or imperfect recognized text; OCR does not interpret graphics.
 
 See [the OCR request/response protocol](docs/pdf-tools.md#local-setup-and-optional-ocr)
 before connecting a hosted provider.
@@ -271,9 +298,12 @@ yarn wrangler deploy --dry-run
 Tests cover PDF extraction, labels and citations, page selection, continuation,
 access revocation, cache isolation and reuse, download restrictions, OCR, Redis
 chunk handling, all tools, and a simulated PKCE OAuth round trip across instances.
-The image-only OCR test requires Poppler/Tesseract; CI installs them. The compiled
+Bundled OCR tests create real image-only PDFs without system executables, verify
+selected-page recognition and cache reuse, and exercise worker timeouts. The
+separate local OCR test requires Poppler/Tesseract; CI installs them. The compiled
 Node startup check catches module-loading failures that TypeScript tests alone
-may miss.
+may miss. `node dist/scripts/smoke-bundled-ocr.js` also checks the compiled worker
+and bundled English assets.
 
 To add a tool, register it under `src/tools/custom/` and add its registration to
 `src/tools/index.ts`. When the Are.na API specification changes, `yarn generate`

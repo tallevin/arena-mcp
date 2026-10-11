@@ -15,6 +15,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "isolatedModules": true,
+    "allowJs": true,
     "types": ["node", "@cloudflare/workers-types"]
   },
   "include": ["src/**/*", "scripts/**/*", "server.ts"],

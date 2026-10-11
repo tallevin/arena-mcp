@@ -36,13 +36,15 @@ const common = {
     .enum(["off", "auto", "force"])
     .optional()
     .describe(
-      "Default off. Auto OCRs sparse pages; force OCRs selected pages. Requires configured provider",
+      "Default off. Auto OCRs sparse pages; force OCRs selected pages. Vercel includes English OCR; other transports require a provider",
     ),
   language: z
     .string()
     .regex(/^[a-zA-Z0-9_+]{1,64}$/)
     .optional()
-    .describe("OCR language, default eng (e.g. eng+fra)"),
+    .describe(
+      "OCR language, default eng. Bundled Vercel OCR supports eng; other providers may support eng+fra",
+    ),
 };
 
 export function registerPdfTools(server: McpServer, service: PdfService) {

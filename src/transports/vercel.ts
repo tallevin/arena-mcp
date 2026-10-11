@@ -2,6 +2,7 @@ import { Redis } from "@upstash/redis";
 import type { StringKv } from "../auth/kv.js";
 import httpApp, { type Env } from "./http.js";
 import { RedisKv } from "../pdf/redis.js";
+import { BundledOcrProvider } from "../pdf/bundled-ocr.js";
 
 export interface VercelEnvironment {
   UPSTASH_REDIS_REST_URL?: string;
@@ -12,6 +13,7 @@ export interface VercelEnvironment {
   ARENA_OAUTH_CLIENT_SECRET?: string;
   PDF_OCR_ENDPOINT?: string;
   PDF_OCR_TOKEN?: string;
+  PDF_OCR?: "off" | "bundled";
 }
 
 /** Shares upstream HTTP/OAuth routes; never enables a server-wide Are.na token. */
@@ -52,6 +54,8 @@ export function createVercelHandler(
     ARENA_OAUTH_CLIENT_SECRET: environment.ARENA_OAUTH_CLIENT_SECRET ?? "",
     PDF_OCR_ENDPOINT: environment.PDF_OCR_ENDPOINT,
     PDF_OCR_TOKEN: environment.PDF_OCR_TOKEN,
+    PDF_OCR_PROVIDER:
+      environment.PDF_OCR === "off" ? undefined : new BundledOcrProvider(),
   };
   return async (request: Request): Promise<Response> => {
     const path = new URL(request.url).pathname;
@@ -76,6 +80,17 @@ export function createVercelHandler(
         hosting: "vercel",
         oauth_configured: oauthConfigured,
         durable_cache_configured: !!storage,
+        ocr_configured: !!(env.PDF_OCR_ENDPOINT || env.PDF_OCR_PROVIDER),
+        ocr_provider: env.PDF_OCR_ENDPOINT
+          ? "remote"
+          : env.PDF_OCR_PROVIDER
+            ? "bundled"
+            : null,
+        ocr_languages: env.PDF_OCR_ENDPOINT
+          ? null
+          : env.PDF_OCR_PROVIDER
+            ? ["eng"]
+            : [],
       });
     }
     return response;

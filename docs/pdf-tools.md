@@ -92,8 +92,23 @@ bounded image dimensions and subprocess deadlines; temporary files are removed.
 The test suite exercises actual image-only PDF OCR when those programs are
 available, and skips that one test otherwise. CI installs them for this test.
 
-Hosted deployment does not include Poppler/Tesseract. To enable hosted OCR, explicitly
-configure `PDF_OCR_ENDPOINT` and optionally `PDF_OCR_TOKEN`. The endpoint must be
+Vercel includes a Node-only bundled provider: PDFium 3 renders pages and Tesseract.js
+7 recognizes them using the packaged English dataset. Per-request OCR still defaults
+to `off`; request `ocr: "auto"` or `"force"` and `language: "eng"`. No external
+document transfer, system executables or runtime language downloads are required.
+Other languages return a clear error. Set `PDF_OCR=off` to disable this provider.
+
+The bundled engine renders at up to 150 DPI with a 3,000-pixel side limit and at
+most nine million pixels per page. A worker processes at most 20 selected pages,
+has a hard 180-second deadline and is terminated on completion or failure. At
+most two jobs run per Node process; excess requests receive a retryable busy error.
+The recognition engine, render settings and language are included in cache keys.
+Raw PDF bytes and rendered images stay in memory and are not added to the cache.
+Decorative lettering and complex visual layouts can produce imperfect OCR text.
+
+An external provider remains optional for Vercel and is the hosted OCR option for
+Cloudflare Workers. Configure `PDF_OCR_ENDPOINT` and optionally `PDF_OCR_TOKEN`;
+an endpoint takes precedence over Vercel's bundled provider. The endpoint must be
 HTTPS, accept a PDF body with `Content-Type: application/pdf`, `X-PDF-Pages`
 (comma-separated physical numbers), and `X-OCR-Language`. It must return:
 
@@ -152,8 +167,9 @@ The Vercel integration can deploy the GitHub branch without adding a local
 Vercel login. If its storage permissions are insufficient, connect Upstash in
 Vercel's dashboard. The existing deployment has Redis connected and the Are.na
 application credentials configured. Its production endpoint is public while
-previews remain protected. No external OCR service is configured. Optional OCR
-uses `PDF_OCR_ENDPOINT` / `PDF_OCR_TOKEN` as described above.
+previews remain protected. English OCR is bundled into Vercel and requested per
+tool call; no external OCR service is configured. The root also reports
+`ocr_configured`, `ocr_provider` and `ocr_languages` (unknown for remote providers).
 
 To connect the existing endpoint in ChatGPT, see the
 [README's ChatGPT steps](../README.md#connect-to-chatgpt), based on
@@ -185,6 +201,8 @@ not independently audited or redesigned by this work.
 - Existing HTTP/OAuth tests and real MCP SDK tool calls, including HTTP bearer
   propagation and omission of API credentials from CDN requests.
 - Actual local Poppler/Tesseract recognition of an image-only scanned PDF.
+- Actual bundled OCR of selected pages from image-only PDFs, cached recognition,
+  preserved citations, hard worker termination and concurrency limits.
 - A real private 21-page Are.na PDF through the local Cloudflare Workers runtime:
   physical pages 1 and 2 returned text and citations; the second read hit KV cache.
 - Redis namespace isolation, expiry settings, large entry chunking, concurrent
@@ -200,6 +218,8 @@ not independently audited or redesigned by this work.
   including the exact production callback and a configured provider client.
 - TypeScript checks, compiled Node.js server startup, build and Cloudflare deployment dry run.
 
-A complete browser OAuth round trip from ChatGPT, including Are.na consent and
-the final token exchange, remains unverified. Hosted Redis persistence is verified;
-the hosted OCR adapter is mock-tested and has no external provider configured.
+The account owner reported successful account access and PDF retrieval through
+the new ChatGPT connection. The deployment smoke tests independently verify live
+bearer access and Redis persistence; browser consent and token exchange were not
+independently repeated. The external OCR adapter remains mock-tested and has no
+provider configured.
