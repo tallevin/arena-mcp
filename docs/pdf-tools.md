@@ -37,6 +37,33 @@ is cut short, `truncated` is true and `continuation` provides `page` and
 offset. For a range that has more pages, `omitted_pages` lists what remains.
 Keep the same OCR mode and language when resuming OCR text.
 
+## Complete document reads
+
+Both tools return extracted source text without summarising or paraphrasing it.
+They do not apply a quotation-length or copyright filter. Native extraction may
+normalise whitespace and reading order; OCR may introduce recognition errors.
+The response budget limits one call, not the length of a document that can be
+retrieved across calls, subject to the document limits below.
+
+For a complete PDF, call `read_pdf_block` without `start_page` or `end_page`.
+Use `max_chars: 250000` if a larger response is useful. When `continuation` is
+present, call `read_pdf_block` again with `start_page` set to its `page` and
+`start_char` set to its `start_char`. Preserve the original `end_page` if the
+first request had one. Keep the same OCR mode and language. Continue until
+`continuation` is null and `omitted_pages` is empty. Preserve the returned page
+numbers when joining text; resumed text for a partial page belongs after that
+page's earlier text.
+
+For an explicit `get_pdf_pages` selection, resume using the original selection's
+unfinished pages (up to 50 per call), starting with the continuation page and its
+character offset. Do not restart at character zero when a page was only partly
+returned, or the assembled text will repeat that page's opening.
+
+The MCP returns source data; it does not grant reproduction rights or override
+the connected assistant's output rules. Saving a PDF or link in Are.na does not
+by itself establish copyright ownership. These tools require a PDF attachment
+block; ordinary web-link article extraction is not implemented by this fork.
+
 ## Caching and download controls
 
 Every request retrieves current block metadata with the caller's token **before**
