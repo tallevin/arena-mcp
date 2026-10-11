@@ -1,9 +1,11 @@
 import { Worker } from "node:worker_threads";
+import { createRequire } from "node:module";
 import type { OcrProvider } from "./service.js";
 import { MAX_PDF_BYTES } from "./download.js";
 
 let activeJobs = 0;
 const MAX_ACTIVE_JOBS = 2;
+const require = createRequire(import.meta.url);
 
 /** Node-only, opt-in OCR. Worker termination supplies a hard CPU deadline. */
 export class BundledOcrProvider implements OcrProvider {
@@ -40,7 +42,8 @@ export class BundledOcrProvider implements OcrProvider {
       // Transfer a copy so rendering cannot detach the service's original PDF.
       const input = bytes.slice();
       worker = new Worker(
-        new URL("./bundled-ocr-worker.cjs", import.meta.url),
+        // Resolve as a module so Vercel traces the worker's dependencies too.
+        require.resolve("./bundled-ocr-worker.cjs"),
         {
           workerData: { bytes: input, pages: [...new Set(pages)] },
           transferList: [input.buffer],
