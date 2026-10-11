@@ -91,6 +91,9 @@ describe("Vercel transport", () => {
       hosting: "vercel",
       oauth_configured: false,
       durable_cache_configured: false,
+      ocr_configured: true,
+      ocr_provider: "bundled",
+      ocr_languages: ["eng"],
       url: origin + "/mcp",
     });
     const discovery = (await (
@@ -108,6 +111,27 @@ describe("Vercel transport", () => {
       ARENA_ACCESS_TOKEN: "shared-token",
     } as never);
     expect((await handle(request("/mcp", {}))).status).toBe(401);
+  });
+
+  it("allows operators to disable bundled OCR or select an external provider", async () => {
+    const disabled = await (
+      await createVercelHandler({ PDF_OCR: "off" })(request("/"))
+    ).json();
+    expect(disabled).toMatchObject({
+      ocr_configured: false,
+      ocr_provider: null,
+      ocr_languages: [],
+    });
+    const remote = await (
+      await createVercelHandler({
+        PDF_OCR_ENDPOINT: "https://ocr.example/recognize",
+      })(request("/"))
+    ).json();
+    expect(remote).toMatchObject({
+      ocr_configured: true,
+      ocr_provider: "remote",
+      ocr_languages: null,
+    });
   });
 
   it("preserves all tools in authenticated MCP discovery", async () => {

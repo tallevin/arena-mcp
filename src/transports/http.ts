@@ -6,7 +6,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpServer } from "../server.js";
 import { oauthRoutes } from "../auth/routes.js";
-import { PdfService } from "../pdf/service.js";
+import { PdfService, type OcrProvider } from "../pdf/service.js";
 import { KvPdfCache } from "../pdf/cache.js";
 import { RemoteOcrProvider } from "../pdf/remote-ocr.js";
 
@@ -18,6 +18,7 @@ export interface Env {
   PDF_CACHE?: StringKv;
   PDF_OCR_ENDPOINT?: string;
   PDF_OCR_TOKEN?: string;
+  PDF_OCR_PROVIDER?: OcrProvider;
 }
 
 const pdfServices = new WeakMap<
@@ -25,16 +26,21 @@ const pdfServices = new WeakMap<
   { signature: string; service: PdfService }
 >();
 function pdfService(env: Env): PdfService | undefined {
-  if (!env.PDF_CACHE && !env.PDF_OCR_ENDPOINT) return undefined;
+  if (!env.PDF_CACHE && !env.PDF_OCR_ENDPOINT && !env.PDF_OCR_PROVIDER)
+    return undefined;
   const identity = env.PDF_CACHE ?? env.OAUTH_KV;
-  const signature = JSON.stringify([env.PDF_OCR_ENDPOINT, env.PDF_OCR_TOKEN]);
+  const signature = JSON.stringify([
+    env.PDF_OCR_ENDPOINT,
+    env.PDF_OCR_TOKEN,
+    env.PDF_OCR_PROVIDER?.id,
+  ]);
   const existing = pdfServices.get(identity);
   if (existing?.signature === signature) return existing.service;
   const service = new PdfService({
     cache: env.PDF_CACHE ? new KvPdfCache(env.PDF_CACHE) : undefined,
     ocr: env.PDF_OCR_ENDPOINT
       ? new RemoteOcrProvider(env.PDF_OCR_ENDPOINT, env.PDF_OCR_TOKEN)
-      : undefined,
+      : env.PDF_OCR_PROVIDER,
   });
   pdfServices.set(identity, { signature, service });
   return service;
