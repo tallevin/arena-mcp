@@ -3,6 +3,15 @@ const { dirname } = require("node:path");
 const { createWorker, OEM } = require("tesseract.js");
 const { PNG } = require("pngjs");
 
+// Tesseract chooses a CPU variant at runtime. Explicitly trace its WASM files,
+// which are opened indirectly by the generated engine rather than JS imports.
+require.resolve("tesseract.js-core/tesseract-core.wasm");
+require.resolve("tesseract.js-core/tesseract-core-lstm.wasm");
+require.resolve("tesseract.js-core/tesseract-core-simd.wasm");
+require.resolve("tesseract.js-core/tesseract-core-simd-lstm.wasm");
+require.resolve("tesseract.js-core/tesseract-core-relaxedsimd.wasm");
+require.resolve("tesseract.js-core/tesseract-core-relaxedsimd-lstm.wasm");
+
 async function recognize() {
   let library, document, engine;
   try {
