@@ -66,8 +66,12 @@ export class BundledOcrProvider implements OcrProvider {
               ),
             );
         });
-        worker!.once("error", () =>
-          reject(new Error("Bundled OCR worker failed")),
+        worker!.once("error", (error) =>
+          reject(
+            new Error(
+              `Bundled OCR worker failed: ${error.message.slice(0, 300)}`,
+            ),
+          ),
         );
         worker!.once("exit", () =>
           reject(new Error("Bundled OCR worker exited without a result")),
